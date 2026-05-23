@@ -145,9 +145,9 @@ CRON_SECRET=${cronSecret}
     const pm2Start = `cd ${APP_DIR} && pm2 delete news-app 2>/dev/null; PORT=${PORT} pm2 start npm --name news-app -- start && pm2 save`;
     await sh.run(pm2Start, "PM2 start");
 
-    const cronLine = `*/5 * * * * curl -fsS -H "Authorization: Bearer ${cronSecret}" http://127.0.0.1:${PORT}/api/cron/check-news >/dev/null 2>&1`;
+    const cronLine = `*/5 * * * * curl -fsS -H 'Authorization: Bearer ${cronSecret}' http://127.0.0.1:${PORT}/api/cron/check-news >/dev/null 2>&1`;
     await sh.run(
-      `(crontab -l 2>/dev/null | grep -v news-app-cron; echo "${cronLine}") | crontab -`,
+      `(crontab -l 2>/dev/null | grep -v '/api/cron/check-news' || true; echo '${cronLine}') | crontab -`,
       "Cron job (elke 5 min)",
     );
 
