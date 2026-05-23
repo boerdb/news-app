@@ -26,7 +26,7 @@ export function RegionTabs({ basePath = "/" }: Props) {
 
   return (
     <nav
-      className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
+      className="flex w-full min-w-0 gap-2 overflow-x-auto pb-1 scrollbar-none"
       aria-label="Regio filter"
     >
       {REGIONS.map((region) => (

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { PageMain } from "@/components/layout/PageMain";
 import { PushOptIn } from "@/components/push/PushOptIn";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +11,7 @@ export default function SettingsPage() {
   return (
     <>
       <AppHeader />
-      <main className="mx-auto max-w-3xl flex-1 px-4 py-6 pb-28">
+      <PageMain>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">
           Instellingen
         </h1>
@@ -59,7 +60,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </div>
-      </main>
+      </PageMain>
     </>
   );
 }

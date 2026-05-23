@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { PageMain } from "@/components/layout/PageMain";
 import { FeedList } from "@/components/headlines/FeedList";
 import { getAggregatedFeed } from "@/lib/feed";
 import { getSourceById } from "@/lib/sources";
@@ -22,7 +23,7 @@ export default async function SourcePage({ params }: PageProps) {
   return (
     <>
       <AppHeader />
-      <main className="mx-auto max-w-3xl flex-1 px-4 py-6 pb-28">
+      <PageMain>
         <Link
           href="/"
           className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
@@ -46,7 +47,7 @@ export default async function SourcePage({ params }: PageProps) {
         <div className="mt-6">
           <FeedList articles={feed.articles} sources={feed.sources} />
         </div>
-      </main>
+      </PageMain>
     </>
   );
 }

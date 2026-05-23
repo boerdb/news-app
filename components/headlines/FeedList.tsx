@@ -10,7 +10,7 @@ export function FeedList({ articles, sources }: Props) {
   const failed = sources.filter((s) => !s.ok);
 
   return (
-    <div className="space-y-4">
+    <div className="w-full min-w-0 space-y-4">
       {failed.length > 0 ? (
         <div
           role="status"

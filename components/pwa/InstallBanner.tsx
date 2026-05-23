@@ -13,7 +13,7 @@ export function InstallBanner() {
     <div
       role="region"
       aria-label="App installeren"
-      className="fixed inset-x-0 bottom-0 z-40 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+      className="fixed inset-x-0 bottom-0 z-40 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[calc(1rem+env(safe-area-inset-bottom))]"
     >
       <div className="mx-auto flex max-w-lg gap-3 rounded-2xl border border-slate-700 bg-slate-900 p-4 shadow-xl">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600">

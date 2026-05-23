@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { PageMain } from "@/components/layout/PageMain";
 import { FeedList } from "@/components/headlines/FeedList";
 import { RegionTabs } from "@/components/headlines/RegionTabs";
 import { NewHeadlinesToast } from "@/components/headlines/NewHeadlinesToast";
@@ -29,7 +30,7 @@ export default async function HomePage({ searchParams }: PageProps) {
   return (
     <>
       <AppHeader />
-      <main className="mx-auto max-w-3xl flex-1 px-4 py-6 pb-28">
+      <PageMain>
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
             Headlines
@@ -50,7 +51,7 @@ export default async function HomePage({ searchParams }: PageProps) {
         <div className="mt-6">
           <FeedList articles={feed.articles} sources={feed.sources} />
         </div>
-      </main>
+      </PageMain>
 
       <Suspense fallback={null}>
         <NewHeadlinesToast region={region} />

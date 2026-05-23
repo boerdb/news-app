@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 export function AppHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/90 pt-[env(safe-area-inset-top)]">
-      <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4">
+      <div className="mx-auto flex h-14 w-full max-w-3xl min-w-0 items-center justify-between gap-3 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
         <Link href="/" className="flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-50">
           <Newspaper className="h-6 w-6 text-blue-600" aria-hidden />
           <span>Headlines</span>
