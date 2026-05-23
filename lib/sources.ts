@@ -38,8 +38,9 @@ export const NEWS_SOURCES: NewsSource[] = [
     name: "Reuters",
     region: "en",
     language: "en",
-    feedUrl: "https://www.reutersagency.com/feed/?best-topics=business-finance&post_type=best",
-    homepage: "https://www.reuters.com",
+    feedUrl:
+      "https://www.reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml",
+    homepage: "https://www.reuters.com/world/",
   },
   {
     id: "tagesschau",
@@ -70,7 +71,8 @@ export const NEWS_SOURCES: NewsSource[] = [
     name: "AP News",
     region: "us",
     language: "en",
-    feedUrl: "https://apnews.com/index.rss",
+    feedUrl:
+      "http://associated-press.s3-website-us-east-1.amazonaws.com/topnews.xml",
     homepage: "https://apnews.com",
   },
 ];

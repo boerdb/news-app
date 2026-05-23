@@ -14,15 +14,15 @@ export function HeadlineCard({ article }: Props) {
 
   return (
     <article className="group w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 transition-shadow hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex min-w-0 gap-4">
+      <div className="flex min-w-0 gap-3 sm:gap-4">
         {article.imageUrl ? (
-          <div className="relative hidden h-20 w-28 shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:block dark:bg-slate-800">
+          <div className="relative h-14 w-[4.5rem] shrink-0 overflow-hidden rounded-md bg-slate-100 sm:h-20 sm:w-28 sm:rounded-lg dark:bg-slate-800">
             <Image
               src={article.imageUrl}
               alt=""
               fill
               className="object-cover"
-              sizes="112px"
+              sizes="(max-width: 640px) 72px, 112px"
               unoptimized
             />
           </div>

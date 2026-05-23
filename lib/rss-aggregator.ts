@@ -1,4 +1,6 @@
 import Parser from "rss-parser";
+import { fetchApFeed } from "./ap-feed";
+import { fetchReutersWorldFeed } from "./reuters-sitemap";
 import { getSourcesByRegion } from "./sources";
 import type { NewsSource } from "./types";
 import type { Article, FeedResult, Region, SourceStatus } from "./types";
@@ -56,6 +58,13 @@ function pickSummary(item: Parser.Item): string | undefined {
 async function fetchSourceFeed(
   source: NewsSource,
 ): Promise<{ articles: Article[]; status: SourceStatus }> {
+  if (source.id === "reuters") {
+    return fetchReutersWorldFeed(source);
+  }
+  if (source.id === "ap") {
+    return fetchApFeed(source);
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
