@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAggregatedFeed } from "@/lib/feed";
 import { computeFingerprint, countNewArticles } from "@/lib/rss-aggregator";
+import { filterPreviousIdsForSources } from "@/lib/push-article-ids";
 import { PUSH_COOLDOWN_MS, sendNewsPushToSubscriber } from "@/lib/push";
 import { NEWS_SOURCES } from "@/lib/sources";
 import {
@@ -43,22 +44,25 @@ export async function GET(request: NextRequest) {
     if (Date.now() - lastPush >= PUSH_COOLDOWN_MS) {
       const subs = await getSubscriptions();
       for (const sub of subs) {
-        const allowed =
-          sub.sourceIds?.length && sub.sourceIds.length > 0
-            ? sub.sourceIds
-            : NEWS_SOURCES.map((s) => s.id);
+        const allowed = sub.sourceIds?.filter(Boolean) ?? [];
+        if (allowed.length === 0) continue;
+
         const filtered = feed.articles.filter((a) =>
           allowed.includes(a.sourceId),
         );
-        const newCount = countNewArticles(filtered, previousIds);
+        const previousForSub = filterPreviousIdsForSources(previousIds, allowed);
+        const newCount = countNewArticles(filtered, previousForSub);
         if (newCount <= 0) continue;
 
         const label =
           allowed.length === 1
             ? sourceNameById[allowed[0]]
-            : allowed.length < NEWS_SOURCES.length
-              ? `${allowed.length} bronnen`
-              : undefined;
+            : allowed
+                .map((id) => sourceNameById[id])
+                .filter(Boolean)
+                .slice(0, 3)
+                .join(", ") +
+              (allowed.length > 3 ? ` +${allowed.length - 3}` : "");
 
         const ok = await sendNewsPushToSubscriber(sub, newCount, label);
         if (ok) pushResult.sent++;
@@ -76,7 +80,7 @@ export async function GET(request: NextRequest) {
 
   await setFingerprint(
     fingerprint,
-    feed.articles.slice(0, 30).map((a) => a.id),
+    feed.articles.map((a) => a.id),
   );
 
   return NextResponse.json({

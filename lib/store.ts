@@ -128,6 +128,21 @@ export async function getSubscriptions(): Promise<PushSubscriptionJSON[]> {
   return (await readFileStore()).subscriptions;
 }
 
+function mergeSubscription(
+  existing: PushSubscriptionJSON | undefined,
+  sub: PushSubscriptionJSON,
+): PushSubscriptionJSON {
+  const merged: PushSubscriptionJSON = {
+    endpoint: sub.endpoint,
+    keys: sub.keys,
+    sourceIds: existing?.sourceIds,
+  };
+  if (sub.sourceIds?.length) {
+    merged.sourceIds = sub.sourceIds;
+  }
+  return merged;
+}
+
 export async function addSubscription(
   sub: PushSubscriptionJSON,
 ): Promise<void> {
@@ -135,7 +150,7 @@ export async function addSubscription(
     const subs = await getSubscriptions();
     const idx = subs.findIndex((s) => s.endpoint === sub.endpoint);
     if (idx >= 0) {
-      subs[idx] = { ...subs[idx], ...sub };
+      subs[idx] = mergeSubscription(subs[idx], sub);
     } else {
       subs.push(sub);
     }
@@ -147,7 +162,7 @@ export async function addSubscription(
       (s) => s.endpoint === sub.endpoint,
     );
     if (idx >= 0) {
-      store.subscriptions[idx] = { ...store.subscriptions[idx], ...sub };
+      store.subscriptions[idx] = mergeSubscription(store.subscriptions[idx], sub);
     } else {
       store.subscriptions.push(sub);
     }

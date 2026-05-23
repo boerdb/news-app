@@ -10,13 +10,19 @@ export async function POST(request: NextRequest) {
     }
     const sourceIds = Array.isArray(body.sourceIds)
       ? body.sourceIds.filter((id): id is string => typeof id === "string")
-      : undefined;
+      : [];
+    if (sourceIds.length === 0) {
+      return NextResponse.json(
+        { error: "Selecteer minstens één bron voor meldingen" },
+        { status: 400 },
+      );
+    }
     await addSubscription({
       endpoint: body.endpoint,
       keys: body.keys,
-      sourceIds: sourceIds?.length ? sourceIds : undefined,
+      sourceIds,
     });
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, sourceIds });
   } catch {
     return NextResponse.json({ error: "Kon niet opslaan" }, { status: 500 });
   }

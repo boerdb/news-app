@@ -35,8 +35,13 @@ export function PushSourcePreferences({ sources }: Props) {
 
   useEffect(() => {
     queueMicrotask(() => {
-      setSelected(getPushSourceIds(allIds));
-      setPushOn(localStorage.getItem(PUSH_ENABLED_KEY) === "1");
+      const sel = getPushSourceIds(allIds);
+      const on = localStorage.getItem(PUSH_ENABLED_KEY) === "1";
+      setSelected(sel);
+      setPushOn(on);
+      if (on && sel.length > 0) {
+        void syncSourcesToServer(sel);
+      }
     });
   }, [allIds]);
 
@@ -72,9 +77,14 @@ export function PushSourcePreferences({ sources }: Props) {
         Meldingen per bron
       </p>
       <p className="mt-1 text-xs text-slate-500">
-        Alleen geselecteerde bronnen sturen een pushmelding (ongeveer elke 15
-        minuten bij nieuws).
+        Alleen aangevinkte bronnen. Wijzigingen worden direct opgeslagen.
+        Melding max. elke 15 minuten bij echt nieuws van die bronnen.
       </p>
+      {pushOn ? (
+        <p className="mt-1 text-xs text-slate-500">
+          Geselecteerd: {selected.length} van {allIds.length} bronnen
+        </p>
+      ) : null}
       {selected.length === 0 ? (
         <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
           Selecteer minstens één bron om meldingen te ontvangen.

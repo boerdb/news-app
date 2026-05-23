@@ -60,6 +60,30 @@ export function PushOptIn({ configuredOnServer = false }: Props) {
       if (hasPushApis() && isPushConfigured()) {
         registerServiceWorker();
       }
+      if (
+        localStorage.getItem(PUSH_ENABLED_KEY) === "1" &&
+        hasPushApis() &&
+        isPushConfigured()
+      ) {
+        const sourceIds = getPushSourceIds(ALL_SOURCE_IDS);
+        if (sourceIds.length > 0) {
+          void navigator.serviceWorker.ready
+            .then((reg) => reg.pushManager.getSubscription())
+            .then((sub) => {
+              if (!sub) return;
+              const json = sub.toJSON();
+              return fetch("/api/push/subscribe", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  endpoint: json.endpoint,
+                  keys: json.keys,
+                  sourceIds,
+                }),
+              });
+            });
+        }
+      }
     };
     queueMicrotask(hydrate);
   }, []);
