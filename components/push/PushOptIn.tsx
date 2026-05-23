@@ -34,11 +34,16 @@ function registerServiceWorker(): void {
   });
 }
 
-export function PushOptIn() {
+type Props = {
+  /** Vanaf server (build-time env), voorkomt verkeerde SSR-tekst. */
+  configuredOnServer?: boolean;
+};
+
+export function PushOptIn({ configuredOnServer = false }: Props) {
   const [enabled, setEnabled] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [loading, setLoading] = useState(false);
-  const [configured, setConfigured] = useState(false);
+  const [configured, setConfigured] = useState(configuredOnServer);
   const [hint, setHint] = useState<string | null>(null);
   const [standalone, setStandalone] = useState(false);
 

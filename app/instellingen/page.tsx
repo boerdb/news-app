@@ -10,6 +10,10 @@ import { NEWS_SOURCES, REGION_LABELS } from "@/lib/sources";
 import { SourcePreferences } from "@/components/settings/SourcePreferences";
 
 export default function SettingsPage() {
+  const pushConfigured = Boolean(
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim(),
+  );
+
   return (
     <>
       <AppHeader />
@@ -43,7 +47,14 @@ export default function SettingsPage() {
               <CardTitle className="text-base">Meldingen</CardTitle>
             </CardHeader>
             <CardContent>
-              <PushOptIn />
+              <p className="mb-3 text-xs text-slate-500">
+                Voor iPhone: gebruik{" "}
+                <strong className="font-medium text-slate-700 dark:text-slate-300">
+                  https://news.clvs.nl
+                </strong>{" "}
+                via het beginscherm-icoon (niet Safari en niet het IP-adres).
+              </p>
+              <PushOptIn configuredOnServer={pushConfigured} />
               <PushSourcePreferences sources={NEWS_SOURCES} />
             </CardContent>
           </Card>
