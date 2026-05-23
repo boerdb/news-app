@@ -85,7 +85,9 @@ export async function fetchReutersWorldFeed(
         sourceId: source.id,
         sourceName: source.name,
         region: source.region,
-        imageUrl: imageMatch?.[1]?.trim(),
+        imageUrl: imageMatch?.[1]
+          ? decodeXmlText(imageMatch[1].trim())
+          : undefined,
       });
     }
 

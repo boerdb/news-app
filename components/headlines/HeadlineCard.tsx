@@ -23,6 +23,7 @@ export function HeadlineCard({ article }: Props) {
               fill
               className="object-cover"
               sizes="(max-width: 640px) 72px, 112px"
+              referrerPolicy="no-referrer"
               unoptimized
             />
           </div>
