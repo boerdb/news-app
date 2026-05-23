@@ -1,9 +1,15 @@
 "use client";
 
 import { Bell, BellOff } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { isPushConfigured } from "@/lib/push-client";
+import {
+  getPushBlockReason,
+  hasPushApis,
+  isStandalonePwa,
+  pushBlockMessage,
+} from "@/lib/pwa-capabilities";
 import { getPushSourceIds } from "@/lib/push-sources";
 import { NEWS_SOURCES } from "@/lib/sources";
 
@@ -19,84 +25,132 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return arr;
 }
 
+function registerServiceWorker(): void {
+  if (!("serviceWorker" in navigator)) return;
+  void navigator.serviceWorker.getRegistration().then((reg) => {
+    if (!reg) {
+      void navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  });
+}
+
 export function PushOptIn() {
   const [enabled, setEnabled] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [loading, setLoading] = useState(false);
   const [configured, setConfigured] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
+  const [standalone, setStandalone] = useState(false);
 
   useEffect(() => {
     const hydrate = () => {
       setConfigured(isPushConfigured());
       setEnabled(localStorage.getItem(PUSH_ENABLED_KEY) === "1");
+      setStandalone(isStandalonePwa());
       if (typeof Notification !== "undefined") {
         setPermission(Notification.permission);
+      }
+      const block = getPushBlockReason(isPushConfigured());
+      setHint(pushBlockMessage(block));
+      if (hasPushApis() && isPushConfigured()) {
+        registerServiceWorker();
       }
     };
     queueMicrotask(hydrate);
   }, []);
 
-  const subscribe = useCallback(async () => {
+  const finishSubscribe = (reg: ServiceWorkerRegistration) => {
     const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    if (!publicKey || !("serviceWorker" in navigator)) return;
+    if (!publicKey) return Promise.reject(new Error("Geen VAPID-sleutel"));
 
-    setLoading(true);
-    try {
-      const perm = await Notification.requestPermission();
-      setPermission(perm);
-      if (perm !== "granted") return;
-
-      const reg = await navigator.serviceWorker.ready;
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(
-            publicKey,
-          ) as BufferSource,
-        });
-      }
-
-      const sourceIds = getPushSourceIds(ALL_SOURCE_IDS);
-      if (sourceIds.length === 0) return;
-
-      const json = sub.toJSON();
-      await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          endpoint: json.endpoint,
-          keys: json.keys,
-          sourceIds,
-        }),
-      });
-
-      localStorage.setItem(PUSH_ENABLED_KEY, "1");
-      setEnabled(true);
-    } finally {
-      setLoading(false);
+    const sourceIds = getPushSourceIds(ALL_SOURCE_IDS);
+    if (sourceIds.length === 0) {
+      setHint("Selecteer minstens één bron voor meldingen.");
+      return Promise.resolve();
     }
-  }, []);
 
-  const unsubscribe = useCallback(async () => {
+    return reg.pushManager
+      .getSubscription()
+      .then((existing) =>
+        existing ??
+        reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+        }),
+      )
+      .then((sub) => {
+        const json = sub.toJSON();
+        return fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            endpoint: json.endpoint,
+            keys: json.keys,
+            sourceIds,
+          }),
+        });
+      })
+      .then(() => {
+        localStorage.setItem(PUSH_ENABLED_KEY, "1");
+        setEnabled(true);
+        setHint(null);
+      });
+  };
+
+  /** iOS: requestPermission moet direct vanuit de tik komen (geen async vóór de aanvraag). */
+  const handleEnable = () => {
+    const block = getPushBlockReason(configured);
+    const blockMsg = pushBlockMessage(block);
+    if (block && block !== "denied") {
+      setHint(blockMsg);
+      return;
+    }
+
+    if (!hasPushApis()) {
+      setHint(pushBlockMessage("no-api"));
+      return;
+    }
+
     setLoading(true);
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) {
-        await fetch("/api/push/unsubscribe", {
+    setHint(null);
+
+    Notification.requestPermission()
+      .then((perm) => {
+        setPermission(perm);
+        if (perm !== "granted") {
+          setHint(
+            perm === "denied"
+              ? pushBlockMessage("denied")
+              : "Meldingen niet toegestaan. Probeer opnieuw via de knop Inschakelen.",
+          );
+          return;
+        }
+        return navigator.serviceWorker.ready.then(finishSubscribe);
+      })
+      .catch(() => {
+        setHint("Kon meldingen niet inschakelen. Probeer opnieuw vanaf het beginscherm-icoon.");
+      })
+      .finally(() => setLoading(false));
+  };
+
+  const handleDisable = () => {
+    setLoading(true);
+    navigator.serviceWorker.ready
+      .then((reg) => reg.pushManager.getSubscription())
+      .then((sub) => {
+        if (!sub) return;
+        return fetch("/api/push/unsubscribe", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint: sub.endpoint }),
-        });
-        await sub.unsubscribe();
-      }
-      localStorage.removeItem(PUSH_ENABLED_KEY);
-      setEnabled(false);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        }).then(() => sub.unsubscribe());
+      })
+      .then(() => {
+        localStorage.removeItem(PUSH_ENABLED_KEY);
+        setEnabled(false);
+      })
+      .finally(() => setLoading(false));
+  };
 
   if (!configured) {
     return (
@@ -107,27 +161,38 @@ export function PushOptIn() {
   }
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <p className="font-medium text-slate-900 dark:text-slate-50">
-          Meldingen bij nieuw nieuws
-        </p>
-        <p className="text-sm text-slate-500">
-          Status: {permission === "granted" && enabled ? "aan" : "uit"}
-          {permission === "denied" ? " (geblokkeerd in browser)" : ""}
-        </p>
+    <div className="space-y-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-medium text-slate-900 dark:text-slate-50">
+            Meldingen bij nieuw nieuws
+          </p>
+          <p className="text-sm text-slate-500">
+            Status: {permission === "granted" && enabled ? "aan" : "uit"}
+            {standalone ? " · app-modus" : " · in browser"}
+          </p>
+        </div>
+        {enabled ? (
+          <Button variant="outline" onClick={handleDisable} disabled={loading}>
+            <BellOff className="h-4 w-4" />
+            Uitschakelen
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            onClick={handleEnable}
+            disabled={loading || permission === "denied"}
+          >
+            <Bell className="h-4 w-4" />
+            Inschakelen
+          </Button>
+        )}
       </div>
-      {enabled ? (
-        <Button variant="outline" onClick={unsubscribe} disabled={loading}>
-          <BellOff className="h-4 w-4" />
-          Uitschakelen
-        </Button>
-      ) : (
-        <Button onClick={subscribe} disabled={loading || permission === "denied"}>
-          <Bell className="h-4 w-4" />
-          Inschakelen
-        </Button>
-      )}
+      {hint ? (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/50 dark:text-amber-100">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }
