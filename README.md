@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Headlines — Nieuws PWA
 
-## Getting Started
+Multi-bron nieuws-headlines (NL, EN, DE, VS) als Next.js PWA met donker/licht thema, install-banner en Web Push bij nieuw nieuws.
 
-First, run the development server:
+## Functies
+
+- **SSR/ISR** — homepage server-rendered, feed cache 5 minuten
+- **RSS** — NOS, Omrop Fryslân, BBC, Reuters, Tagesschau, Spiegel, NPR, AP
+- **Optioneel News API** — zet `NEWS_API_KEY` voor extra headlines
+- **PWA** — installeerbaar op iOS/Android, offline cache via service worker
+- **Web Push** — cron controleert elke 5 min op nieuwe artikelen
+
+## Ontwikkeling
 
 ```bash
+npm install
+npm run icons
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+PWA staat in development uit; test install/push met `npm run build && npm start`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## VAPID-sleutels
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npx web-push generate-vapid-keys
+```
 
-## Learn More
+Kopieer public/private key naar `.env.local` (zie `.env.example`).
 
-To learn more about Next.js, take a look at the following resources:
+## Cron lokaal testen
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+curl -H "Authorization: Bearer JOUW_CRON_SECRET" http://localhost:3000/api/cron/check-news
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Redis (eigen server)
 
-## Deploy on Vercel
+De app gebruikt **Redis** als `REDIS_URL` is gezet (anders `.data/` lokaal of Vercel KV).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Maak `.env.local` aan (niet committen) met bijvoorbeeld:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   ```
+   REDIS_URL=redis://:JOUW_REDIS_WACHTWOORD@192.168.1.14:6379
+   ```
+
+   Zonder wachtwoord: `redis://192.168.1.14:6379`
+
+2. Op de Redis-host moet poort **6379** bereikbaar zijn vanaf je dev-machine (`bind` / firewall). Test:
+
+   ```bash
+   curl http://localhost:3000/api/health/redis
+   ```
+
+3. **Alleen via SSH** (Redis luistert op localhost op de server):
+
+   ```bash
+   ssh -L 6379:127.0.0.1:6379 root@192.168.1.14
+   ```
+
+   In `.env.local`: `REDIS_URL=redis://127.0.0.1:6379`
+
+Opslag-sleutels in Redis: `news-app:fingerprint`, `news-app:subscriptions`, enz.
+
+Test verbinding:
+
+```bash
+npm run test:redis
+```
+
+### Veelvoorkomend: "protected mode"
+
+Redis op een server accepteert dan alleen verbindingen vanaf `localhost`. Oplossing:
+
+**A — SSH-tunnel (veilig, geen Redis-config wijzigen):**
+
+```bash
+ssh -L 6379:127.0.0.1:6379 root@192.168.1.14
+```
+
+In `.env.local`: `REDIS_URL=redis://127.0.0.1:6379` (tunnel moet open blijven).
+
+**B — LAN-toegang op de server** (alleen thuisnetwerk, niet via internet):
+
+```bash
+ssh root@192.168.1.14
+redis-cli CONFIG SET protected-mode no
+redis-cli CONFIG SET bind "0.0.0.0 ::1"
+redis-cli CONFIG REWRITE
+sudo systemctl restart redis-server
+```
+
+`root` / SSH-wachtwoord ≠ Redis-wachtwoord; jouw server had **geen** Redis-wachtwoord ingesteld.
+
+## Deploy (Vercel)
+
+1. Push naar GitHub en importeer in Vercel
+2. Voeg environment variables toe (`.env.example`)
+3. Zet `REDIS_URL` naar je server, of koppel Vercel KV als fallback
+4. `CRON_SECRET` wordt automatisch gebruikt door Vercel Cron
+
+## iOS push
+
+Web Push op iOS werkt alleen als de app op het **beginscherm** staat (iOS 16.4+). Gebruik de install-banner: Deel → Zet op beginscherm.
+
+## Bronnen
+
+RSS-feeds kunnen tijdelijk falen; de app toont dan een waarschuwing per bron zonder de hele feed te blokkeren.
