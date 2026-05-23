@@ -14,8 +14,16 @@ export const NEWS_SOURCES: NewsSource[] = [
     name: "Omrop Fryslân",
     region: "nl",
     language: "nl",
-    feedUrl: "https://www.omropfryslan.nl/nijs/rss",
+    feedUrl: "https://www.omropfryslan.nl/rss/nieuws.xml",
     homepage: "https://www.omropfryslan.nl",
+  },
+  {
+    id: "geenstijl",
+    name: "GeenStijl",
+    region: "nl",
+    language: "nl",
+    feedUrl: "https://www.geenstijl.nl/feeds/recent.atom",
+    homepage: "https://www.geenstijl.nl",
   },
   {
     id: "bbc",

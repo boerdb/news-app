@@ -7,11 +7,12 @@ const parser = new Parser({
   timeout: 12_000,
   headers: {
     "User-Agent": "NewsHeadlinesPWA/1.0 (+https://github.com/news-app)",
-    Accept: "application/rss+xml, application/xml, text/xml",
+    Accept:
+      "application/rss+xml, application/atom+xml, application/xml, text/xml",
   },
 });
 
-const PER_SOURCE_LIMIT = 15;
+const PER_SOURCE_LIMIT = 12;
 const TOTAL_LIMIT = 100;
 const FETCH_TIMEOUT_MS = 14_000;
 
@@ -24,11 +25,32 @@ function pickImage(item: Parser.Item): string | undefined {
   if (enclosure?.url && enclosure.type?.startsWith("image")) {
     return enclosure.url;
   }
+  const links = (item as Parser.Item & { links?: Array<{ url?: string; rel?: string; type?: string }> })
+    .links;
+  if (links) {
+    const imageLink = links.find(
+      (l) => l.rel === "enclosure" && l.type?.startsWith("image") && l.url,
+    );
+    if (imageLink?.url) return imageLink.url;
+  }
   const media = item as Parser.Item & {
     "media:content"?: { $?: { url?: string } };
     "media:thumbnail"?: { $?: { url?: string } };
   };
-  return media["media:content"]?.$?.url ?? media["media:thumbnail"]?.$?.url;
+  const fromMedia =
+    media["media:content"]?.$?.url ?? media["media:thumbnail"]?.$?.url;
+  if (fromMedia) return fromMedia;
+
+  const html = item.content ?? item.summary ?? "";
+  const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return imgMatch?.[1];
+}
+
+function pickSummary(item: Parser.Item): string | undefined {
+  const raw = item.contentSnippet ?? item.summary ?? "";
+  const plain = raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  if (!plain) return undefined;
+  return plain.slice(0, 200);
 }
 
 async function fetchSourceFeed(
@@ -55,7 +77,7 @@ async function fetchSourceFeed(
           sourceName: source.name,
           region: source.region,
           imageUrl: pickImage(item),
-          summary: item.contentSnippet?.slice(0, 200),
+          summary: pickSummary(item),
         };
       })
       .filter((a) => a.link.length > 0);
