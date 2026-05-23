@@ -41,4 +41,6 @@ export type PushSubscriptionJSON = {
     p256dh: string;
     auth: string;
   };
+  /** Empty or omitted = all sources. */
+  sourceIds?: string[];
 };

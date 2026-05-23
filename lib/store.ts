@@ -133,14 +133,22 @@ export async function addSubscription(
 ): Promise<void> {
   if (usesRemoteStore()) {
     const subs = await getSubscriptions();
-    if (!subs.some((s) => s.endpoint === sub.endpoint)) {
+    const idx = subs.findIndex((s) => s.endpoint === sub.endpoint);
+    if (idx >= 0) {
+      subs[idx] = { ...subs[idx], ...sub };
+    } else {
       subs.push(sub);
-      await remoteSet(KEYS.subscriptions, subs);
     }
+    await remoteSet(KEYS.subscriptions, subs);
     return;
   }
   await mutateFileStore((store) => {
-    if (!store.subscriptions.some((s) => s.endpoint === sub.endpoint)) {
+    const idx = store.subscriptions.findIndex(
+      (s) => s.endpoint === sub.endpoint,
+    );
+    if (idx >= 0) {
+      store.subscriptions[idx] = { ...store.subscriptions[idx], ...sub };
+    } else {
       store.subscriptions.push(sub);
     }
   });

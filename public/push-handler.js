@@ -20,19 +20,29 @@ self.addEventListener("push", (event) => {
   );
 });
 
+function resolveAppUrl(path) {
+  const p = path || "/";
+  if (p.startsWith("http://") || p.startsWith("https://")) return p;
+  return new URL(p, self.location.origin).href;
+}
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/";
+  const targetUrl = resolveAppUrl(event.notification.data?.url);
+
   event.waitUntil(
     clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clientList) => {
         for (const client of clientList) {
-          if (client.url.includes(self.location.origin) && "focus" in client) {
+          if (client.url.startsWith(self.location.origin)) {
+            if ("navigate" in client) {
+              return client.navigate(targetUrl).then((c) => c?.focus());
+            }
             return client.focus();
           }
         }
-        if (clients.openWindow) return clients.openWindow(url);
+        if (clients.openWindow) return clients.openWindow(targetUrl);
       }),
   );
 });

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAggregatedFeed } from "@/lib/feed";
 import { computeFingerprint, countNewArticles } from "@/lib/rss-aggregator";
-import { PUSH_COOLDOWN_MS, sendNewsPush } from "@/lib/push";
+import { PUSH_COOLDOWN_MS, sendNewsPushToSubscriber } from "@/lib/push";
+import { NEWS_SOURCES } from "@/lib/sources";
 import {
   getFingerprint,
   getLastPushAt,
@@ -30,23 +31,48 @@ export async function GET(request: NextRequest) {
   const previous = await getFingerprint();
   const previousIds = await getPreviousArticleIds();
 
-  const newCount =
-    previous && previous !== fingerprint
-      ? countNewArticles(feed.articles, previousIds)
-      : 0;
+  const feedChanged = Boolean(previous && previous !== fingerprint);
+  const sourceNameById = Object.fromEntries(
+    NEWS_SOURCES.map((s) => [s.id, s.name]),
+  );
 
   let pushResult = { sent: 0, failed: 0 };
 
-  if (newCount > 0) {
+  if (feedChanged) {
     const lastPush = await getLastPushAt();
     if (Date.now() - lastPush >= PUSH_COOLDOWN_MS) {
       const subs = await getSubscriptions();
-      pushResult = await sendNewsPush(subs, newCount);
+      for (const sub of subs) {
+        const allowed =
+          sub.sourceIds?.length && sub.sourceIds.length > 0
+            ? sub.sourceIds
+            : NEWS_SOURCES.map((s) => s.id);
+        const filtered = feed.articles.filter((a) =>
+          allowed.includes(a.sourceId),
+        );
+        const newCount = countNewArticles(filtered, previousIds);
+        if (newCount <= 0) continue;
+
+        const label =
+          allowed.length === 1
+            ? sourceNameById[allowed[0]]
+            : allowed.length < NEWS_SOURCES.length
+              ? `${allowed.length} bronnen`
+              : undefined;
+
+        const ok = await sendNewsPushToSubscriber(sub, newCount, label);
+        if (ok) pushResult.sent++;
+        else pushResult.failed++;
+      }
       if (pushResult.sent > 0) {
         await setLastPushAt(Date.now());
       }
     }
   }
+
+  const newCount = feedChanged
+    ? countNewArticles(feed.articles, previousIds)
+    : 0;
 
   await setFingerprint(
     fingerprint,

@@ -48,39 +48,25 @@ function shell(conn) {
   };
 }
 
+function parseEnvValue(text, key) {
+  const m = text.match(new RegExp(`^${key}=(.+)$`, "m"));
+  return m?.[1]?.trim() ?? "";
+}
+
+function generateVapid() {
+  const out = execSync("npx web-push generate-vapid-keys", {
+    encoding: "utf8",
+    cwd: resolve(process.cwd()),
+  });
+  const pub = out.match(/Public Key:\s*\n(.+)/);
+  const priv = out.match(/Private Key:\s*\n(.+)/);
+  return {
+    public: pub?.[1]?.trim() ?? "",
+    private: priv?.[1]?.trim() ?? "",
+  };
+}
+
 async function main() {
-  let vapidPublic = "";
-  let vapidPrivate = "";
-  try {
-    const out = execSync("npx web-push generate-vapid-keys", {
-      encoding: "utf8",
-      cwd: resolve(process.cwd()),
-    });
-    const pub = out.match(/Public Key:\s*\n(.+)/);
-    const priv = out.match(/Private Key:\s*\n(.+)/);
-    vapidPublic = pub?.[1]?.trim() ?? "";
-    vapidPrivate = priv?.[1]?.trim() ?? "";
-  } catch (e) {
-    console.error("VAPID genereren mislukt", e.message);
-    process.exit(1);
-  }
-
-  const cronSecret =
-    process.env.CRON_SECRET ||
-    execSync("node -e \"console.log(require('crypto').randomBytes(24).toString('hex'))\"", {
-      encoding: "utf8",
-    }).trim();
-
-  const envContent = `# news-app production — gegenereerd ${new Date().toISOString()}
-NODE_ENV=production
-PORT=${PORT}
-REDIS_URL=${REDIS_URL}
-NEXT_PUBLIC_VAPID_PUBLIC_KEY=${vapidPublic}
-VAPID_PRIVATE_KEY=${vapidPrivate}
-VAPID_SUBJECT=mailto:boerdb@users.noreply.github.com
-CRON_SECRET=${cronSecret}
-`;
-
   const conn = new Client();
   await new Promise((resolvePromise, reject) => {
     conn
@@ -95,6 +81,47 @@ CRON_SECRET=${cronSecret}
     await sh.run("node -v && npm -v && pm2 -v", "Check node/npm/pm2");
 
     const hasDir = await sh.run(`test -d ${APP_DIR} && echo yes || echo no`, "Check app dir");
+
+    let existingEnv = "";
+    if (hasDir.includes("yes")) {
+      try {
+        existingEnv = await sh.run(`cat ${APP_DIR}/.env.local 2>/dev/null || true`, "Read .env.local");
+      } catch {
+        existingEnv = "";
+      }
+    }
+
+    const existingPublic = parseEnvValue(existingEnv, "NEXT_PUBLIC_VAPID_PUBLIC_KEY");
+    const existingPrivate = parseEnvValue(existingEnv, "VAPID_PRIVATE_KEY");
+    const existingCron = parseEnvValue(existingEnv, "CRON_SECRET");
+
+    let vapidPublic = existingPublic;
+    let vapidPrivate = existingPrivate;
+    if (!vapidPublic || !vapidPrivate) {
+      const fresh = generateVapid();
+      vapidPublic = fresh.public;
+      vapidPrivate = fresh.private;
+      console.log("\nℹ️  Nieuwe VAPID-sleutels (push opnieuw inschakelen in de app)");
+    } else {
+      console.log("\nℹ️  Bestaande VAPID-sleutels behouden");
+    }
+
+    const cronSecret =
+      process.env.CRON_SECRET ||
+      existingCron ||
+      execSync("node -e \"console.log(require('crypto').randomBytes(24).toString('hex'))\"", {
+        encoding: "utf8",
+      }).trim();
+
+    const envContent = `# news-app production — gegenereerd ${new Date().toISOString()}
+NODE_ENV=production
+PORT=${PORT}
+REDIS_URL=${REDIS_URL}
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=${vapidPublic}
+VAPID_PRIVATE_KEY=${vapidPrivate}
+VAPID_SUBJECT=mailto:boerdb@users.noreply.github.com
+CRON_SECRET=${cronSecret}
+`;
     if (hasDir.includes("yes")) {
       await sh.run(`cd ${APP_DIR} && git pull origin main`, "Git pull");
     } else {

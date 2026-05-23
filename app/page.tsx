@@ -3,7 +3,7 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { PageMain } from "@/components/layout/PageMain";
 import { FeedList } from "@/components/headlines/FeedList";
 import { RegionTabs } from "@/components/headlines/RegionTabs";
-import { NewHeadlinesToast } from "@/components/headlines/NewHeadlinesToast";
+import { FeedAutoRefresh } from "@/components/headlines/FeedAutoRefresh";
 import { SeenArticlesMarker } from "@/components/headlines/SeenArticlesMarker";
 import { getAggregatedFeed } from "@/lib/feed";
 import type { Region } from "@/lib/types";
@@ -54,7 +54,7 @@ export default async function HomePage({ searchParams }: PageProps) {
       </PageMain>
 
       <Suspense fallback={null}>
-        <NewHeadlinesToast region={region} />
+        <FeedAutoRefresh region={region} />
       </Suspense>
       <SeenArticlesMarker articleIds={articleIds} />
     </>

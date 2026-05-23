@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { PageMain } from "@/components/layout/PageMain";
 import { PushOptIn } from "@/components/push/PushOptIn";
+import { PushSourcePreferences } from "@/components/push/PushSourcePreferences";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NEWS_SOURCES, REGION_LABELS } from "@/lib/sources";
@@ -35,6 +36,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <PushOptIn />
+              <PushSourcePreferences sources={NEWS_SOURCES} />
             </CardContent>
           </Card>
 

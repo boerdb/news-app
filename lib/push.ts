@@ -21,20 +21,29 @@ export function isPushConfigured(): boolean {
   );
 }
 
+function pushBody(newCount: number, sourceLabel?: string): string {
+  const countText =
+    newCount === 1
+      ? "1 nieuw bericht"
+      : `${newCount} nieuwe berichten`;
+  if (sourceLabel) {
+    return `${sourceLabel}: ${countText}`;
+  }
+  return newCount === 1 ? "Er is 1 nieuw bericht" : `Er zijn ${countText}`;
+}
+
 export async function sendNewsPush(
   subscriptions: PushSubscriptionJSON[],
   newCount: number,
+  sourceLabel?: string,
 ): Promise<{ sent: number; failed: number }> {
-  if (!configureWebPush() || subscriptions.length === 0) {
+  if (!configureWebPush() || subscriptions.length === 0 || newCount <= 0) {
     return { sent: 0, failed: 0 };
   }
 
   const payload = JSON.stringify({
     title: "Nieuwe headlines",
-    body:
-      newCount === 1
-        ? "Er is 1 nieuw bericht"
-        : `Er zijn ${newCount} nieuwe berichten`,
+    body: pushBody(newCount, sourceLabel),
     url: "/",
     tag: "news-update",
   });
@@ -54,6 +63,28 @@ export async function sendNewsPush(
   );
 
   return { sent, failed };
+}
+
+export async function sendNewsPushToSubscriber(
+  sub: PushSubscriptionJSON,
+  newCount: number,
+  sourceLabel?: string,
+): Promise<boolean> {
+  if (!configureWebPush() || newCount <= 0) return false;
+
+  const payload = JSON.stringify({
+    title: "Nieuwe headlines",
+    body: pushBody(newCount, sourceLabel),
+    url: "/",
+    tag: "news-update",
+  });
+
+  try {
+    await webpush.sendNotification(sub, payload);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export { PUSH_COOLDOWN_MS };

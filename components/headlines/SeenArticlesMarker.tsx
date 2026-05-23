@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { markArticlesSeen } from "./NewHeadlinesToast";
+import { markArticlesSeen } from "@/lib/seen-articles";
 
 type Props = {
   articleIds: string[];

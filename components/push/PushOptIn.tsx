@@ -4,8 +4,11 @@ import { Bell, BellOff } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { isPushConfigured } from "@/lib/push-client";
+import { getPushSourceIds } from "@/lib/push-sources";
+import { NEWS_SOURCES } from "@/lib/sources";
 
 const PUSH_ENABLED_KEY = "news-app:pushEnabled";
+const ALL_SOURCE_IDS = NEWS_SOURCES.map((s) => s.id);
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -54,6 +57,9 @@ export function PushOptIn() {
         });
       }
 
+      const sourceIds = getPushSourceIds(ALL_SOURCE_IDS);
+      if (sourceIds.length === 0) return;
+
       const json = sub.toJSON();
       await fetch("/api/push/subscribe", {
         method: "POST",
@@ -61,6 +67,7 @@ export function PushOptIn() {
         body: JSON.stringify({
           endpoint: json.endpoint,
           keys: json.keys,
+          sourceIds,
         }),
       });
 
