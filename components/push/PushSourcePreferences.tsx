@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { NewsSource } from "@/lib/types";
 import { getPushSourceIds, setPushSourceIds } from "@/lib/push-sources";
 
@@ -29,7 +29,7 @@ async function syncSourcesToServer(sourceIds: string[]): Promise<void> {
 }
 
 export function PushSourcePreferences({ sources }: Props) {
-  const allIds = sources.map((s) => s.id);
+  const allIds = useMemo(() => sources.map((s) => s.id), [sources]);
   const [selected, setSelected] = useState<string[]>(allIds);
   const [pushOn, setPushOn] = useState(false);
 
