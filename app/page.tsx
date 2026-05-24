@@ -40,6 +40,7 @@ export default async function HomePage({ searchParams }: PageProps) {
             {new Date(feed.fetchedAt).toLocaleString("nl-NL", {
               dateStyle: "short",
               timeStyle: "short",
+              timeZone: "Europe/Amsterdam",
             })}
           </p>
         </div>
