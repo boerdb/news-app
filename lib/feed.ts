@@ -37,8 +37,17 @@ export async function getAggregatedFeed(options?: {
 
   const articles = mergeArticles(rss.articles, apiArticles);
 
+  const articlesBySource = { ...rss.articlesBySource };
+  for (const article of apiArticles) {
+    const list = articlesBySource[article.sourceId] ?? [];
+    if (!list.some((a) => a.id === article.id)) {
+      articlesBySource[article.sourceId] = [...list, article];
+    }
+  }
+
   return {
     articles,
+    articlesBySource,
     fetchedAt: new Date().toISOString(),
     sources: rss.sources,
   };

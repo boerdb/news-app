@@ -1,7 +1,9 @@
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { redisConfigured, redisGet, redisSet } from "./redis";
-import type { PushSubscriptionJSON } from "./types";
+import { SEEN_IDS_PER_SOURCE } from "./rss-aggregator";
+import { articleSourceId } from "./push-article-ids";
+import type { PushSubscriptionJSON, SeenIdsBySource } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const STORE_FILE = path.join(DATA_DIR, "store.json");
@@ -9,6 +11,7 @@ const STORE_FILE = path.join(DATA_DIR, "store.json");
 const KEYS = {
   fingerprint: "fingerprint",
   previousArticleIds: "previousArticleIds",
+  seenBySource: "seenBySource",
   subscriptions: "subscriptions",
   lastPushAt: "lastPushAt",
 } as const;
@@ -16,6 +19,7 @@ const KEYS = {
 type StoreData = {
   fingerprint: string;
   previousArticleIds: string[];
+  seenBySource: SeenIdsBySource;
   subscriptions: PushSubscriptionJSON[];
   lastPushAt: number;
 };
@@ -23,6 +27,7 @@ type StoreData = {
 const defaultStore = (): StoreData => ({
   fingerprint: "",
   previousArticleIds: [],
+  seenBySource: {},
   subscriptions: [],
   lastPushAt: 0,
 });
@@ -119,6 +124,68 @@ export async function getPreviousArticleIds(): Promise<string[]> {
     return (await remoteGet<string[]>(KEYS.previousArticleIds)) ?? [];
   }
   return (await readFileStore()).previousArticleIds;
+}
+
+function seedSeenFromPreviousIds(
+  seen: SeenIdsBySource,
+  previousIds: string[],
+): SeenIdsBySource {
+  const next: SeenIdsBySource = { ...seen };
+  for (const id of previousIds) {
+    const sourceId = articleSourceId(id);
+    const list = next[sourceId] ?? [];
+    if (!list.includes(id)) {
+      next[sourceId] = [...list, id];
+    }
+  }
+  for (const sourceId of Object.keys(next)) {
+    next[sourceId] = next[sourceId].slice(0, SEEN_IDS_PER_SOURCE);
+  }
+  return next;
+}
+
+export async function getSeenIdsBySource(): Promise<SeenIdsBySource> {
+  let seen: SeenIdsBySource;
+  if (usesRemoteStore()) {
+    seen = (await remoteGet<SeenIdsBySource>(KEYS.seenBySource)) ?? {};
+  } else {
+    seen = (await readFileStore()).seenBySource ?? {};
+  }
+
+  if (Object.keys(seen).length === 0) {
+    const previousIds = await getPreviousArticleIds();
+    if (previousIds.length > 0) {
+      seen = seedSeenFromPreviousIds(seen, previousIds);
+      await setSeenIdsBySource(seen);
+    }
+  }
+
+  return seen;
+}
+
+export async function setSeenIdsBySource(seen: SeenIdsBySource): Promise<void> {
+  if (usesRemoteStore()) {
+    await remoteSet(KEYS.seenBySource, seen);
+    return;
+  }
+  await mutateFileStore((store) => {
+    store.seenBySource = seen;
+  });
+}
+
+/** Voeg huidige feed-ids per bron toe aan geheugen (na push-check). */
+export async function mergeSeenIdsBySource(
+  currentBySource: Record<string, string[]>,
+): Promise<void> {
+  const seen = await getSeenIdsBySource();
+  const next: SeenIdsBySource = { ...seen };
+
+  for (const [sourceId, ids] of Object.entries(currentBySource)) {
+    const merged = [...new Set([...ids, ...(next[sourceId] ?? [])])];
+    next[sourceId] = merged.slice(0, SEEN_IDS_PER_SOURCE);
+  }
+
+  await setSeenIdsBySource(next);
 }
 
 export async function getSubscriptions(): Promise<PushSubscriptionJSON[]> {

@@ -31,9 +31,14 @@ export type SourceStatus = {
 
 export type FeedResult = {
   articles: Article[];
+  /** Laatste RSS-fetch per bron (vóór globale top-100 merge). */
+  articlesBySource: Record<string, Article[]>;
   fetchedAt: string;
   sources: SourceStatus[];
 };
+
+/** Per bron: recent geziene artikel-ids (voorkomt valse push bij feed-rotatie). */
+export type SeenIdsBySource = Record<string, string[]>;
 
 export type PushSubscriptionJSON = {
   endpoint: string;

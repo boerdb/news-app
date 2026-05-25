@@ -139,6 +139,10 @@ export async function fetchRssFeed(options?: {
 
   const results = await Promise.all(sources.map(fetchSourceFeed));
   const sources_status = results.map((r) => r.status);
+  const articlesBySource: Record<string, Article[]> = {};
+  for (const r of results) {
+    articlesBySource[r.status.sourceId] = r.articles;
+  }
   const articles = dedupeArticles(
     results
       .flatMap((r) => r.articles)
@@ -151,10 +155,14 @@ export async function fetchRssFeed(options?: {
 
   return {
     articles,
+    articlesBySource,
     fetchedAt: new Date().toISOString(),
     sources: sources_status,
   };
 }
+
+/** Max. ids per bron onthouden voor push (ruimer dan RSS-limit van 12). */
+export const SEEN_IDS_PER_SOURCE = 48;
 
 export function computeFingerprint(articles: Article[]): string {
   const ids = articles
